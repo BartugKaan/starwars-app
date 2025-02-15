@@ -6,103 +6,126 @@ import {
   Image,
   ActivityIndicator,
   TouchableOpacity,
+  TextInput,
 } from 'react-native'
 import { useDispatch, useSelector } from 'react-redux'
 import { RootState, AppDispatch } from '../redux/store'
-import { fetchCharacters } from '../redux/slices/characterSlice'
+import {
+  fetchCharacters,
+  searchCharacters,
+} from '../redux/slices/characterSlice'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 export default function HomeScreen() {
-  const dispatch = useDispatch<AppDispatch>() // Dispatch function to trigger Redux actions
+  const dispatch = useDispatch<AppDispatch>()
   const {
     items: characters,
+    searchResults,
     status,
+    searchStatus,
     error,
+    searchError,
     currentPage,
     hasMore,
-  } = useSelector((state: RootState) => state.characters) // Access Redux state
+  } = useSelector((state: RootState) => state.characters)
 
-  const [isImageLoading, setIsImageLoading] = useState(true)
+  // State for storing the search query
+  const [query, setQuery] = useState('')
 
+  // Fetch the first page of characters when the app starts
   useEffect(() => {
-    dispatch(fetchCharacters(1)) // Fetch data when the component mounts
+    if (characters.length === 0) {
+      dispatch(fetchCharacters(1))
+    }
   }, [dispatch])
 
+  // Fetch characters from the API when the user searches for a name
+  useEffect(() => {
+    if (query.length > 0) {
+      dispatch(searchCharacters(query))
+    }
+  }, [query, dispatch])
+
+  // Determine which list to display: search results or full list
+  const displayedCharacters = query.length > 0 ? searchResults : characters
+
+  // "Load More" button should only work when the user is not searching
   const handleLoadMore = () => {
-    if (hasMore) {
-      const nextPage = currentPage + 1
-      dispatch(fetchCharacters(nextPage))
+    if (hasMore && query.length === 0) {
+      dispatch(fetchCharacters(currentPage))
     }
   }
 
-  // Show loading indicator while data is being fetched
-  if (status === 'loading') {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    )
-  }
-
-  // Display an error message if API call fails
-  if (status === 'failed') {
-    console.log('Redux Error:', error)
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ fontSize: 18, color: 'red' }}>{error}</Text>
-      </View>
-    )
-  }
-
-  // Display the character list using FlatList
   return (
-    <View style={{ flex: 1 }}>
-      <FlatList
-        data={characters}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={{ flex: 1, padding: 10 }}>
+        {/* Search Input Field */}
+        <TextInput
+          style={{
+            height: 40,
+            borderColor: 'gray',
+            borderWidth: 1,
+            borderRadius: 5,
+            marginBottom: 10,
+            paddingHorizontal: 10,
+          }}
+          placeholder="Search characters..."
+          value={query}
+          onChangeText={(text) => setQuery(text)}
+        />
+
+        {/* Show loading indicator when fetching data */}
+        {(searchStatus === 'loading' && query.length > 0) ||
+        (status === 'loading' && query.length === 0) ? (
+          <ActivityIndicator size="large" color="#0000ff" />
+        ) : (query.length > 0 && searchError) ||
+          (query.length === 0 && error) ? (
+          <Text style={{ fontSize: 18, color: 'red' }}>
+            {query.length > 0 ? searchError : error}
+          </Text>
+        ) : (
+          <FlatList
+            data={displayedCharacters}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => <CharacterItem character={item} />}
+          />
+        )}
+
+        {/* "Load More" button should be visible only when searching is not active */}
+        {hasMore && query.length === 0 && (
+          <TouchableOpacity
+            onPress={handleLoadMore}
             style={{
+              backgroundColor: '#0000ff',
               padding: 10,
               alignItems: 'center',
-              backgroundColor: 'gray',
               margin: 10,
-              borderRadius: 25,
+              borderRadius: 5,
             }}
           >
-            {isImageLoading && (
-              <ActivityIndicator size="small" color="#0000ff" />
-            )}
-            <Image
-              source={{ uri: item.image }}
-              style={{
-                width: 200,
-                height: 300,
-                borderRadius: 15,
-                paddingBottom: 15,
-              }}
-              onLoad={() => setIsImageLoading(false)}
-            />
-            <Text style={{ fontSize: 16, fontWeight: 'bold' }}>
-              {item.name}
-            </Text>
-          </View>
+            <Text style={{ color: 'white', fontSize: 16 }}>Load More</Text>
+          </TouchableOpacity>
         )}
+      </View>
+    </GestureHandlerRootView>
+  )
+}
+
+// Component for displaying a character item
+const CharacterItem = ({
+  character,
+}: {
+  character: { id: number; name: string; image: string }
+}) => {
+  return (
+    <View style={{ padding: 10, alignItems: 'center' }}>
+      <Image
+        source={{ uri: character.image }}
+        style={{ width: 100, height: 100, borderRadius: 50 }}
       />
-      {hasMore && (
-        <TouchableOpacity
-          onPress={handleLoadMore}
-          style={{
-            backgroundColor: '#0000ff',
-            padding: 10,
-            alignItems: 'center',
-            margin: 10,
-            borderRadius: 5,
-            marginBottom: 30,
-          }}
-        >
-          <Text style={{ color: 'white', fontSize: 16 }}> Load More</Text>
-        </TouchableOpacity>
-      )}
+      <Text style={{ fontSize: 16, fontWeight: 'bold', marginTop: 5 }}>
+        {character.name}
+      </Text>
     </View>
   )
 }

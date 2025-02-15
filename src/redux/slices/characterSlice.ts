@@ -9,20 +9,28 @@ interface Character {
 
 // Redux State model
 interface CharacterState {
-  items: Character[] // List of characters
-  status: 'idle' | 'loading' | 'succeeded' | 'failed' // Status of API request
-  error: string | null // Error message in case of failure
-  currentPage: number // Track the current Page
-  hasMore: boolean // Indicates if there are more pages to load
+  items: Character[] // All characters from API
+  searchResults: Character[] // Filtered characters for search
+  status: 'idle' | 'loading' | 'succeeded' | 'failed'
+  searchStatus: 'idle' | 'loading' | 'succeeded' | 'failed'
+  error: string | null
+  currentPage: number
+  searchError: string | null
+  hasMore: boolean
+  searchQuery: string // New search state
 }
 
 // Initial state for the Redux slice
 const initialState: CharacterState = {
   items: [],
+  searchResults: [],
   status: 'idle',
+  searchStatus: 'idle',
   error: null,
+  searchError: null,
   currentPage: 1,
   hasMore: true,
+  searchQuery: '',
 }
 
 // Async function to fetch character data from API
@@ -48,7 +56,49 @@ export const fetchCharacters = createAsyncThunk(
         image: char.image,
       }))
 
-      return { characters, hasMore: data.info.next !== null }
+      return {
+        characters,
+        hasMore: data.info.next !== null,
+        nextPage: page + 1,
+      }
+    } catch (error: any) {
+      console.error('ERROR:', error.message)
+      return rejectWithValue(error.message)
+    }
+  }
+)
+
+export const searchCharacters = createAsyncThunk(
+  'characters/searchCharacters',
+  async (name: string, { rejectWithValue }) => {
+    try {
+      console.log(`Searching character: ${name}`)
+
+      const response = await fetch(
+        `https://starwars-databank-server.vercel.app/api/v1/characters/name/${name}`
+      )
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // Debugging: Log the API response to understand its structure
+      console.log('API Response:', JSON.stringify(data, null, 2))
+
+      // Ensure the API response contains the expected structure
+      if (!data || !Array.isArray(data)) {
+        throw new Error('Invalid API response: Expected an array.')
+      }
+
+      const characters: Character[] = data.map((char: any) => ({
+        id: char._id,
+        name: char.name,
+        image: char.image,
+      }))
+
+      return characters
     } catch (error: any) {
       console.error('ERROR:', error.message)
       return rejectWithValue(error.message)
@@ -63,25 +113,43 @@ const characterSlice = createSlice({
   reducers: {
     resetCharacters: (state) => {
       state.items = []
-      state.currentPage += 1
+      state.searchResults = []
+      state.currentPage = 1
       state.hasMore = true
       state.status = 'idle'
+      state.searchStatus = 'idle'
     },
   },
   extraReducers: (builder) => {
     builder
+      // ✅ Fetch Characters (Pagination)
       .addCase(fetchCharacters.pending, (state) => {
         state.status = 'loading'
-        state.error = null // Reset error if any previous error exists
+        state.error = null
       })
       .addCase(fetchCharacters.fulfilled, (state, action) => {
         state.status = 'succeeded'
         state.items = [...state.items, ...action.payload.characters]
         state.hasMore = action.payload.hasMore
+        state.currentPage = action.payload.nextPage
       })
       .addCase(fetchCharacters.rejected, (state, action) => {
         state.status = 'failed'
-        state.error = action.payload as string // Store error message in Redux
+        state.error = action.payload as string
+      })
+
+      // ✅ Search Characters
+      .addCase(searchCharacters.pending, (state) => {
+        state.searchStatus = 'loading'
+        state.searchError = null
+      })
+      .addCase(searchCharacters.fulfilled, (state, action) => {
+        state.searchStatus = 'succeeded'
+        state.searchResults = action.payload
+      })
+      .addCase(searchCharacters.rejected, (state, action) => {
+        state.searchStatus = 'failed'
+        state.searchError = action.payload as string
       })
   },
 })
