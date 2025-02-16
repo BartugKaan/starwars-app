@@ -51,7 +51,8 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     marginHorizontal: 15,
-    marginTop: 5,
+    marginVertical: 5,
+    color: '#2c3e50',
   },
   row: {
     flex: 1,

@@ -1,4 +1,4 @@
-import { View, Image, Text, StyleSheet } from 'react-native'
+import { View, Image, Text, StyleSheet, Pressable } from 'react-native'
 
 export default function DataCard({
   item,
@@ -6,36 +6,60 @@ export default function DataCard({
   item: { name: string; image: number }
 }) {
   return (
-    <View style={styles.dataCardContainerStyle}>
-      <Image
-        style={{
-          width: 150,
-          height: 250,
-          borderRadius: 15,
-          marginBottom: 5,
-        }}
-        source={item.image}
-      ></Image>
-      <Text style={styles.dataCardTextStyle}>{item.name}</Text>
-    </View>
+    <Pressable
+      style={({ pressed }) => [
+        styles.dataCardContainerStyle,
+        pressed && styles.pressed,
+      ]}
+    >
+      <View style={styles.imageContainer}>
+        <Image style={styles.image} source={item.image} resizeMode="cover" />
+      </View>
+      <View style={styles.textContainer}>
+        <Text style={styles.dataCardTextStyle}>{item.name}</Text>
+      </View>
+    </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
   dataCardContainerStyle: {
-    flexDirection: 'column',
+    backgroundColor: '#d1cdcd',
+    borderRadius: 16,
+    marginVertical: 8,
+    marginHorizontal: 8,
+    padding: 10,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  pressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.98 }],
+  },
+  imageContainer: {
+    width: 160,
+    height: 220,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  textContainer: {
+    padding: 12,
     alignItems: 'center',
-    alignContent: 'space-between',
-    marginTop: 15,
-    marginHorizontal: 15,
-    height: 300,
-    width: 'auto',
-    padding: 15,
-    borderRadius: 10,
   },
   dataCardTextStyle: {
     fontSize: 16,
-    margin: 3,
     fontWeight: '600',
+    color: '#2c3e50',
   },
 })
